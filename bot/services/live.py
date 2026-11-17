@@ -237,6 +237,7 @@ def portfolio(user, network, tokens) -> dict:
     except prices.PriceUnavailable:
         usd = None
     rows, total = [], native
+    prices.warm(t for t in tokens if raw.get(t.pk, 0) > 0)
     for token in tokens:
         amount = Decimal(raw.get(token.pk, 0)) / Decimal(10**token.decimals)
         if amount <= 0:

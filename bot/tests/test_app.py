@@ -141,6 +141,14 @@ class SettingsTests(AppTestCase):
 
 
 class SmallFixesTests(AppTestCase):
+    def test_trade_page_remembers_the_token(self):
+        from bot.services import market
+        second = Token.objects.filter(network__is_active=True).order_by("-pk").first()
+        with patch("bot.views._price_info", return_value={"price": None, "price_usd": None, "error": "x"}), \
+             patch("bot.services.market.pool_info", side_effect=market.MarketUnavailable("x")):
+            self.client.get(f"/trade/?token={second.pk}")
+            self.assertEqual(self.client.get("/trade/").context["token"], second)   # back from another tab
+
     def test_admin_logout_returns_to_app(self):
         self.assertRedirects(self.client.post("/admin/logout/"), "/pond/", fetch_redirect_response=False)
         self.assertEqual(self.client.get("/pond/").status_code, 200)  # still logged in

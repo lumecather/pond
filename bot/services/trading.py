@@ -108,7 +108,9 @@ def portfolio(user, network) -> dict:
     except prices.PriceUnavailable:
         usd = None
     rows, total = [], native.amount
-    for bal in PaperBalance.objects.filter(user=user, network=network, token__isnull=False, amount__gt=0).select_related("token"):
+    held = list(PaperBalance.objects.filter(user=user, network=network, token__isnull=False, amount__gt=0).select_related("token__network"))
+    prices.warm(b.token for b in held)
+    for bal in held:
         try:
             price = prices.get_price(bal.token)
             value = bal.amount * price

@@ -90,7 +90,12 @@ def trade(request):
             messages.error(request, order.error)
         return redirect(f"/trade/?token={token.pk}")
 
-    token = tokens.filter(pk=request.GET.get("token") or 0).first() or tokens.first()
+    # the page remembers the last token you opened, so coming back to Trade doesn't jump to the first one
+    key = f"trade_token:{network.pk}" if network else "trade_token"
+    token = (tokens.filter(pk=request.GET.get("token") or 0).first()
+             or tokens.filter(pk=request.session.get(key) or 0).first() or tokens.first())
+    if token:
+        request.session[key] = token.pk
     ctx = {"tab": "trade", "tokens": tokens, "token": token, "limit": None}
     if token:
         ctx["info"] = _price_info(token)

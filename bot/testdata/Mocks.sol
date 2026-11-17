@@ -80,3 +80,18 @@ contract MockV3 {
         wrapped = 0; payable(recipient).transfer(amount);
     }
 }
+
+// Same aggregate3 and getEthBalance as the real Multicall3 (0xcA11...), enough for prices and balances.
+contract MockMulticall {
+    struct Call3 { address target; bool allowFailure; bytes callData; }
+    struct Result { bool success; bytes returnData; }
+    function aggregate3(Call3[] calldata calls) external payable returns (Result[] memory results) {
+        results = new Result[](calls.length);
+        for (uint256 i = 0; i < calls.length; i++) {
+            (bool ok, bytes memory data) = calls[i].target.call(calls[i].callData);
+            require(ok || calls[i].allowFailure, "Multicall3: call failed");
+            results[i] = Result(ok, data);
+        }
+    }
+    function getEthBalance(address addr) external view returns (uint256) { return addr.balance; }
+}

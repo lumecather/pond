@@ -69,23 +69,49 @@ def _contract(w3, address, abi):
 
 
 def quotes(network, w3, token_in: str, token_out: str, amount_in: int) -> list[Route]:
-    """Every available swap route, best first. Pools that don't exist are skipped."""
-    out = []
+    """Every available swap route, best first. Pools that don't exist are skipped.
+    With Multicall3 all quotes go in one request instead of one request per pool."""
+    asks = []  # (route kind, fee, router, contract, call data, output types)
     if network.router_address:
-        try:
-            amount = _contract(w3, network.router_address, V2_ABI).functions.getAmountsOut(amount_in, [token_in, token_out]).call()[-1]
-            out.append(Route("v2", 3000, amount, network.router_address))
-        except Exception:
-            pass
+        v2 = _contract(w3, network.router_address, V2_ABI)
+        asks.append(("v2", 3000, network.router_address, network.router_address,
+                     v2.encode_abi("getAmountsOut", args=[amount_in, [token_in, token_out]]), ["uint256[]"]))
     if network.v3_router and network.v3_quoter:
         quoter = _contract(w3, network.v3_quoter, V3_QUOTER_ABI)
         for fee in V3_FEES:
-            try:
-                amount = quoter.functions.quoteExactInputSingle((token_in, token_out, amount_in, fee, 0)).call()[0]
-                out.append(Route("v3", fee, amount, network.v3_router))
-            except Exception:
-                pass
+            asks.append(("v3", fee, network.v3_router, network.v3_quoter,
+                         quoter.encode_abi("quoteExactInputSingle", args=[(token_in, token_out, amount_in, fee, 0)]),
+                         ["uint256", "uint160", "uint32", "uint256"]))
+    answers = _call_all(network, w3, [(target, data) for _, _, _, target, data, _ in asks])
+    out = []
+    for (kind, fee, router, _, _, types), data in zip(asks, answers):
+        if not data:
+            continue  # no such pool
+        try:
+            value = w3.codec.decode(types, data)[0]
+        except Exception:
+            continue
+        amount = value[-1] if kind == "v2" else value
+        out.append(Route(kind, fee, amount, router))
     return sorted((r for r in out if r.amount_out > 0), key=lambda r: -r.amount_out)
+
+
+def _call_all(network, w3, calls: list[tuple[str, bytes]]) -> list:
+    """Run read calls and return each one's raw result, or None where it failed."""
+    if network.multicall_address and len(calls) > 1:
+        mc = _contract(w3, network.multicall_address, MULTICALL_ABI)
+        try:
+            result = mc.functions.aggregate3([(target, True, data) for target, data in calls]).call()
+            return [data if ok else None for ok, data in result]
+        except Exception:
+            pass  # Multicall3 didn't answer: ask one by one
+    answers = []
+    for target, data in calls:
+        try:
+            answers.append(bytes(w3.eth.call({"to": target, "data": data})))
+        except Exception:
+            answers.append(None)
+    return answers
 
 
 def best_route(network, w3, token_in, token_out, amount_in) -> Route:

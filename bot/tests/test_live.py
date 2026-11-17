@@ -67,6 +67,7 @@ class LiveTradingTests(AppTestCase):
             receipt = w3.eth.wait_for_transaction_receipt(c.constructor(*args).transact({"from": self.boss, "value": value}))
             return w3.eth.contract(address=receipt["contractAddress"], abi=MOCKS[name]["abi"])
 
+        self.deploy = deploy
         self.coin = deploy("MockToken")
         weth = deploy("MockToken").address  # only the "WETH" address is needed
         self.v2 = deploy("MockV2Router", weth, 1000, value=5 * ETH)   # 1 ETH = 1000 tokens
@@ -138,6 +139,21 @@ class LiveTradingTests(AppTestCase):
         # the mock pool doesn't charge one, which is why the result is a hair under 1/1100.
         with patch("bot.services.prices.get_w3", return_value=self.w3):
             self.assertEqual(prices._route_price(self.token), Decimal("0.9995") / Decimal(1100))
+
+    def test_multicall_gives_the_same_quotes_in_one_request(self):
+        one_by_one = dex.quotes(self.net, self.w3, self.net.wrapped_native, self.token.address, ETH)
+        mc = self.deploy("MockMulticall")
+        Network.objects.filter(pk=self.net.pk).update(multicall_address=mc.address)
+        self.net.refresh_from_db()
+        with patch.object(self.w3.eth, "call", wraps=self.w3.eth.call) as calls:
+            batched = dex.quotes(self.net, self.w3, self.net.wrapped_native, self.token.address, ETH)
+        self.assertEqual(calls.call_count, 1)                         # V2 + three V3 pools in one eth_call
+        self.assertEqual(batched, one_by_one)
+        self.assertEqual([r.label for r in batched], ["Uniswap V3 0.05 %", "Uniswap V3 0.3 %", "Uniswap V2"])  # the 1 % pool doesn't exist
+        self.buy()
+        native, raw = dex.balances(self.net, self.w3, self.wallet.address, [self.token])
+        self.assertEqual(raw[self.token.pk], 11 * ETH)
+        self.assertEqual(native, self.w3.eth.get_balance(self.wallet.address))
 
     def test_v2_only_network(self):
         Network.objects.filter(pk=self.net.pk).update(v3_router="", v3_quoter="")

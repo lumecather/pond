@@ -7,6 +7,7 @@ The pool fee is taken out of the quote, so the price is the market (mid) price: 
 shows, and demo trades charge their fee once, like a real swap.
 Results are cached for a few seconds so pages don't hit the RPC on every view.
 """
+from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
 
 from django.core.cache import cache
@@ -89,3 +90,23 @@ def native_usd(network) -> Decimal:
 
 def get_price_usd(token) -> Decimal:
     return get_price(token) * native_usd(token.network)
+
+
+def warm(tokens) -> None:
+    """Fetch the prices of several tokens at the same time, so a page with many positions doesn't wait
+    for them one after another. Errors are ignored here: the caller asks again and shows them."""
+    tokens = list(tokens)
+    for t in tokens:
+        t.network  # load from the database here, not inside the threads
+    missing = [t for t in tokens if cache.get(f"price:{t.pk}") is None]
+    if len(missing) < 2:
+        return
+    with ThreadPoolExecutor(max_workers=min(6, len(missing))) as pool:
+        list(pool.map(_try_price, missing))
+
+
+def _try_price(token):
+    try:
+        get_price(token)
+    except Exception:
+        pass
