@@ -28,7 +28,7 @@ Trade tokens by hand, leave orders for a bot, and learn as you go: every token s
 
 **Windows:** download `Pond-windows.zip` from [Releases](../../releases), unzip it anywhere and run `Pond.exe`.
 
-The app isn't code-signed, so Windows SmartScreen may warn you the first time: click **More info → Run anyway**. If you'd rather not run a downloaded program, run Pond from source instead: it's the same code.
+The app isn't code-signed, so Windows SmartScreen may warn you the first time: click **More info → Run anyway**. If the window doesn't open and you see `Failed to resolve Python.Runtime.Loader.Initialize`, right-click the downloaded zip → **Properties** → tick **Unblock**, then unzip it again. If you'd rather not run a downloaded program, run Pond from source instead: it's the same code.
 
 **From source (Windows, macOS, Linux):** you need Python 3.11 or newer.
 

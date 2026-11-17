@@ -105,6 +105,20 @@ def bot_loop(stop: threading.Event):
             log.exception("bot pass failed")
 
 
+def _unblock_bundle():
+    """Windows marks downloaded files as blocked, and .NET then refuses to load
+    the bundled pythonnet DLL that opens the window. Remove that mark once."""
+    if os.name != "nt" or not getattr(sys, "frozen", False):
+        return
+    base = Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    for path in base.rglob("*"):
+        if path.suffix.lower() in (".dll", ".exe", ".pyd"):
+            try:
+                os.remove(f"{path}:Zone.Identifier")
+            except OSError:
+                pass
+
+
 def main():
     parser = argparse.ArgumentParser(description=f"{APP_NAME}: a trading bot that runs on your computer")
     parser.add_argument("--browser", action="store_true", help="open in your regular browser instead of the app window")
@@ -114,6 +128,7 @@ def main():
     folder = data_dir()
     _setup_logging(folder)
     lock = _single_instance(folder)
+    _unblock_bundle()
     try:
         import webview
     except Exception:
