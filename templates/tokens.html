@@ -1,0 +1,63 @@
+{% extends "base.html" %}{% load fmt %}
+{% block title %}Market — {{ site_name }}{% endblock %}
+{% block content %}
+<h1>Market</h1>
+<p class="lead-s">{{ count }} tokens on {{ network.name }}. Pick what to trade: each one says what it is.</p>
+<input id="q" type="search" placeholder="Search by symbol or name" autocomplete="off" aria-label="Search tokens">
+
+{% for g in groups %}
+<section data-group>
+  <h2>{{ g.title }}</h2>
+  {% for t in g.tokens %}
+  <a class="row token-row" href="{% url 'trade' %}?token={{ t.pk }}" data-q="{{ t.symbol|lower }} {{ t.name|lower }}">
+    {% include "partials/token_avatar.html" %}
+    <span><b>{{ t.symbol }} <small>{{ t.name }}</small></b>
+      <small>{% if t.description %}{{ t.description }}{% elif not t.is_verified %}Not verified. Trade with care.{% endif %}</small></span>
+  </a>
+  {% endfor %}
+</section>
+{% endfor %}
+<p id="no-match" class="empty" hidden>Nothing found. You can add a token by address below.</p>
+
+{% if trending %}
+<section>
+  <h2>Trending now</h2>
+  <p class="notice warn">These tokens are being traded actively right now. They are not verified: scams and one-day tokens show up here too. <a href="{% url 'guide' 'scam-tokens' %}">How to check</a></p>
+  {% for t in trending %}
+  <form method="post" action="{% url 'token_add' %}" class="row token-row">{% csrf_token %}
+    <input type="hidden" name="address" value="{{ t.address }}">
+    {% include "partials/token_avatar.html" %}
+    <span><b>{{ t.symbol }} <small class="{% if t.change_24h > 0 %}up{% elif t.change_24h < 0 %}down{% endif %}">{% if t.change_24h > 0 %}+{% endif %}{{ t.change_24h|floatformat:1 }} % in 24h</small></b>
+      <small>volume {{ t.volume_24h|compact }} · liquidity {{ t.liquidity_usd|compact }}</small></span>
+    <span class="r"><button class="btn small">Open</button></span>
+  </form>
+  {% endfor %}
+</section>
+{% endif %}
+
+<details class="card fold" style="margin-top:24px">
+  <summary>Add a token by address</summary>
+  <form method="post" action="{% url 'token_add' %}">{% csrf_token %}
+    <input name="address" placeholder="0x…" autocomplete="off" class="mono" required>
+    <button class="btn">Add</button>
+    <p class="hint">The symbol and name are read from the contract. Unverified tokens are at your own risk: <a href="{% url 'guide' 'scam-tokens' %}">how not to buy a scam</a>.</p>
+  </form>
+</details>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const q = document.getElementById("q");
+  q.addEventListener("input", () => {
+    const s = q.value.trim().toLowerCase();
+    let any = false;
+    document.querySelectorAll("[data-group]").forEach(g => {
+      let shown = 0;
+      g.querySelectorAll("[data-q]").forEach(r => { const ok = r.dataset.q.includes(s); r.hidden = !ok; shown += ok; });
+      g.hidden = !shown; any = any || shown > 0;
+    });
+    document.getElementById("no-match").hidden = any;
+  });
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}{% load fmt %}
+{% block title %}Rules — {{ site_name }}{% endblock %}
+{% block content %}
+<h1>Rules {% if mode == "live" %}<span class="chip hot">live</span>{% else %}<span class="chip">demo</span>{% endif %}</h1>
+<p class="lead-s">An order for the bot: it watches the price and buys or sells by itself.{% if mode == "live" %} These rules spend real money from the trading wallet; a buy never exceeds the limit.{% endif %}</p>
+
+{% if tokens %}
+<form method="post" class="card" id="rule-form">
+  {% csrf_token %}
+  <p class="label">Ready-made recipes</p>
+  <div class="chips">
+    <button type="button" data-preset="below,buy">Buy the dip</button>
+    <button type="button" data-preset="above,sell">Take profit</button>
+    <button type="button" data-preset="below,sell">Stop-loss</button>
+  </div>
+
+  <div class="sentence">
+    <span>When</span> {{ form.token }}
+    {{ form.trigger }}
+    <span class="with-unit"><i>$</i>{{ form.trigger_price_usd }}</span>
+    <span>→</span> {{ form.action }}
+    <span data-action="buy" class="with-unit"><span>for</span>{{ form.amount_native }}<i>{{ network.native_symbol }}</i></span>
+    <span data-action="sell" class="with-unit" hidden>{{ form.sell_percent }}<i>%</i></span>
+  </div>
+  {% for field in form %}{% for e in field.errors %}<p class="hint down">{{ e }}</p>{% endfor %}{% endfor %}
+  {% for e in form.non_field_errors %}<p class="hint down">{{ e }}</p>{% endfor %}
+
+  <label class="check">{{ form.repeat }} Repeat (at most once an hour)</label>
+  <button class="btn primary wide">Enable rule</button>
+  <p class="hint center">Not sure what to pick? <a href="{% url 'guide' 'bot-rules' %}">Three recipes in plain words</a></p>
+</form>
+{% endif %}
+
+<section>
+  <h2>My rules</h2>
+  {% for r in rules %}
+  <div class="row{% if not r.is_active %} off{% endif %}">
+    <span><b>{{ r.token.symbol }} {{ r.get_trigger_display }} {{ r.trigger_price_usd|usd }}</b>
+      <small>{{ r.get_action_display|lower }} {% if r.action == "buy" %}for {{ r.amount_native|num }} {{ network.native_symbol }}{% else %}{{ r.sell_percent }} %{% endif %}{% if r.repeat %} · repeats{% endif %}{% if r.last_fired %} · last run {{ r.last_fired|date:"M j, H:i" }}{% endif %}</small>
+      {% with last=r.order_set.all|first %}{% if last and last.status == "failed" %}<small class="down">Last attempt failed: {{ last.error }}{% if r.is_active %} Retrying in a few minutes.{% else %} Switched off after 3 failures.{% endif %}</small>{% endif %}{% endwith %}</span>
+    <span class="r inline">
+      <form method="post" action="{% url 'rule_toggle' r.pk %}">{% csrf_token %}<button class="btn small">{% if r.is_active %}Pause{% else %}Enable{% endif %}</button></form>
+      <form method="post" action="{% url 'rule_delete' r.pk %}">{% csrf_token %}<button class="btn small ghost" aria-label="Delete rule">✕</button></form>
+    </span>
+  </div>
+  {% empty %}<p class="empty">No rules yet.</p>{% endfor %}
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const form = document.getElementById("rule-form");
+  if (!form) return;
+  const sync = () => form.querySelectorAll("[data-action]").forEach(el => el.hidden = el.dataset.action !== form.elements.action.value);
+  form.elements.action.addEventListener("change", sync);
+  form.querySelectorAll("[data-preset]").forEach(b => b.addEventListener("click", () => {
+    const [trigger, action] = b.dataset.preset.split(",");
+    form.elements.trigger.value = trigger;
+    form.elements.action.value = action;
+    if (action === "sell") form.elements.sell_percent.value = trigger === "below" ? 100 : 50;
+    sync();
+    form.elements.trigger_price_usd.focus();
+  }));
+  sync();
+})();
+</script>
+{% endblock %}

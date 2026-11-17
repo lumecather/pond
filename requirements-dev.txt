@@ -1,0 +1,5 @@
+-r requirements.txt
+# live-mode tests run on a real in-memory EVM
+eth-tester[py-evm]
+# building Pond.exe
+pyinstaller==6.22.3

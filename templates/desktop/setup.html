@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Welcome — {{ site_name }}{% endblock %}
+{% block content %}
+<section class="gate">
+  {% include "partials/logo.html" with cls="big" %}
+  <h1>Welcome to {{ site_name }}</h1>
+  <p class="lead-s">Everything runs on your computer: keys and settings are never sent anywhere. First, choose a password: it encrypts the trading wallet's key.</p>
+  <form method="post" class="card">{% csrf_token %}
+    {% if error %}<p class="hint down">{{ error }}</p>{% endif %}
+    <label class="label" for="password">Password, at least {{ min_length }} characters</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" required autofocus>
+    <label class="label" for="repeat" style="margin-top:12px">Repeat it</label>
+    <input id="repeat" name="repeat" type="password" autocomplete="new-password" required>
+    <label class="check"><input type="checkbox" name="understood"> I understand that a forgotten password can't be recovered</label>
+    <button class="btn primary wide">Continue</button>
+    <p class="hint">The password is asked on every launch, just like in Rabby or MetaMask.</p>
+  </form>
+</section>
+{% endblock %}

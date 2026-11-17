@@ -1,0 +1,70 @@
+{% extends "base.html" %}{% load fmt %}
+{% block title %}Settings — {{ site_name }}{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+
+<section class="card">
+  <h2>Network connection (RPC)</h2>
+  <p class="hint">Through an RPC URL the app reads prices and balances and sends trades. It's a link like <span class="mono">https://…/your-key</span>; Alchemy, Infura, dRPC and others give one for free. <a href="{% url 'guide' 'rpc-keys' %}">Get one in 3 minutes</a></p>
+  {% if first %}<p class="notice">Start here: without an RPC URL there are no prices, charts or trades.</p>{% endif %}
+  {% for r in rows %}
+  <form method="post" class="rpc">{% csrf_token %}<input type="hidden" name="network" value="{{ r.net.slug }}">
+    <label class="label" for="rpc-{{ r.net.slug }}">{{ r.net.name }}{% if r.from_env %} <small>(currently from an environment variable)</small>{% endif %}</label>
+    <div class="rpc-row">
+      <input id="rpc-{{ r.net.slug }}" name="url" type="password" value="{{ r.url }}" placeholder="https://…" autocomplete="off" spellcheck="false">
+      <button type="button" class="btn small" data-reveal="rpc-{{ r.net.slug }}">Show</button>
+    </div>
+    <div class="row-actions">
+      <button class="btn small primary" name="action" value="save_rpc">Save and test</button>
+      <button class="btn small" name="action" value="test_rpc">Test only</button>
+    </div>
+  </form>
+  {% endfor %}
+  <p class="hint">More networks can be added in the <a href="/admin/bot/network/">admin</a> (Networks).</p>
+</section>
+
+<form method="post" class="card">{% csrf_token %}<input type="hidden" name="action" value="trading">
+  <h2>Trading</h2>
+  <label class="check"><input type="checkbox" name="live" {% if user.live_enabled %}checked{% endif %}> Allow live trading (real money)</label>
+  {% if not user.live_enabled %}<label class="check"><input type="checkbox" name="live_understood"> I understand: trades can't be undone, the bot can make mistakes, and I can lose money</label>{% endif %}
+  <p class="hint">Then switch between Demo and Live in the menu at the top.</p>
+
+  <label class="label" for="limit" style="margin-top:16px">Single-buy limit, {{ network.native_symbol }}</label>
+  <input id="limit" name="limit" inputmode="decimal" value="{{ limit|num }}">
+  <p class="hint">Guards against typos and rule mistakes: the bot never buys more than this at once.</p>
+
+  <label class="label" for="slippage" style="margin-top:16px">Slippage tolerance, %</label>
+  <input id="slippage" name="slippage" inputmode="decimal" value="{{ slippage|num }}">
+  <p class="hint">If the price moves further while the trade is in flight, the swap is cancelled. 1 % fits almost always. <a href="{% url 'guide' 'gas-slippage' %}">What is this</a></p>
+
+  <label class="label" for="withdraw" style="margin-top:16px">Withdrawal address</label>
+  <input id="withdraw" name="withdraw" class="mono" value="{{ withdraw }}" placeholder="0x… your main wallet" autocomplete="off" spellcheck="false">
+  <p class="hint">The Withdraw buttons on the Wallet tab only send money here. Paste the address of your own wallet, for example from Rabby.</p>
+  <button class="btn primary wide">Save</button>
+</form>
+
+<form method="post" class="card">{% csrf_token %}<input type="hidden" name="action" value="password">
+  <h2>Password</h2>
+  <label class="label" for="old">Current password</label>
+  <input id="old" name="old" type="password" autocomplete="current-password">
+  <label class="label" for="new" style="margin-top:12px">New password</label>
+  <input id="new" name="new" type="password" autocomplete="new-password">
+  <label class="label" for="repeat" style="margin-top:12px">Repeat the new password</label>
+  <input id="repeat" name="repeat" type="password" autocomplete="new-password">
+  <button class="btn wide">Change password</button>
+</form>
+
+<section class="card">
+  <h2>Data</h2>
+  <p class="hint">Everything is stored on this computer in <span class="mono">{{ data_dir }}</span>: the database with settings, trades and the encrypted key. To move to another computer, copy the whole folder.</p>
+</section>
+{% endblock %}
+{% block scripts %}
+<script>
+document.querySelectorAll("[data-reveal]").forEach((b) => b.addEventListener("click", () => {
+  const input = document.getElementById(b.dataset.reveal);
+  input.type = input.type === "password" ? "text" : "password";
+  b.textContent = input.type === "password" ? "Show" : "Hide";
+}));
+</script>
+{% endblock %}

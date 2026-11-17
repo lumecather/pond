@@ -1,0 +1,10 @@
+{% load fmt %}
+{% for o in orders %}
+<div class="row{% if o.status == 'failed' %} failed{% endif %}">
+  <span><b><i class="dot {{ o.side }}"></i>{{ o.get_side_display }} {{ o.token.symbol }}</b>
+    <small>{{ o.created_at|date:"M j, H:i" }} · {{ o.get_source_display|lower }} · {% if o.mode == "paper" %}demo{% else %}<b class="live-tag">live</b>{% endif %}{% if o.tx_hash and o.token.network.explorer_url %} · <a href="{{ o.token.network.explorer_url }}/tx/{{ o.tx_hash }}" target="_blank" rel="noopener">transaction</a>{% endif %}</small></span>
+  <span class="r">{% if o.status == 'failed' %}<b>failed</b><small>{{ o.error }}</small>
+    {% elif o.status == 'pending' %}<b>pending…</b><small>waiting for a block</small>
+    {% else %}<b>{{ o.amount_token|num }} {{ o.token.symbol }}</b><small>for {{ o.amount_native|num }} {{ o.token.network.native_symbol }}{% if o.price_usd %} · at {{ o.price_usd|usd }}{% endif %}{% if o.gas_native %} · gas {{ o.gas_native|num }}{% endif %}</small>{% endif %}</span>
+</div>
+{% empty %}<p class="empty">No trades yet.</p>{% endfor %}

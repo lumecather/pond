@@ -1,0 +1,98 @@
+{% extends "base.html" %}{% load fmt static %}
+{% block title %}{% if token %}{{ token.symbol }} — {% endif %}Trade — {{ site_name }}{% endblock %}
+{% block content %}
+{% if not token %}
+  <h1>Trade</h1>
+  <div class="card"><p>There are no tokens on this network yet. <a href="{% url 'tokens' %}">Add a token by address</a>.</p></div>
+{% else %}
+<section class="card token-card">
+  <a class="token-head" href="{% url 'tokens' %}" title="Pick another token">
+    {% include "partials/token_avatar.html" with t=token %}
+    <span class="names"><b>{{ token.symbol }}</b><small>{{ token.name }} · {{ token.get_category_display }}</small></span>
+    <span class="btn small">Change ›</span>
+  </a>
+  {% if token.description %}<p class="desc">{{ token.description }}</p>{% endif %}
+  {% if not token.is_verified %}
+  <div class="notice warn">This token is not verified. You may not be able to sell it. <a href="{% url 'guide' 'scam-tokens' %}">What to check</a>
+    {% if token.added_by_id == user.id %}<form method="post" action="{% url 'token_remove' token.pk %}">{% csrf_token %}<button class="btn small ghost">Remove from my list</button></form>{% endif %}
+  </div>
+  {% endif %}
+
+  <p class="price" id="price" data-price="{{ info.price|default_if_none:''|stringformat:'s' }}" data-usd="{{ info.price_usd|default_if_none:''|stringformat:'s' }}">
+    {% if info.error %}<span class="down">{{ info.error }}</span>
+    {% else %}<span id="live-price">{% if info.price_usd %}{{ info.price_usd|usd }}{% else %}{{ info.price|num }} {{ network.native_symbol }}{% endif %}</span>
+      <small>per {{ token.symbol }}{% if user.pro_mode %} · <span id="live-native">{{ info.price|num }}</span> {{ network.native_symbol }}{% endif %}</small>{% endif %}
+  </p>
+  <p class="live" id="live"><i></i><span id="live-text">the price updates by itself</span></p>
+  {% if user.pro_mode %}<p class="mono">{{ token.address }}</p>{% endif %}
+  {% if market %}
+  <dl class="stats">
+    <div><dt>24h change</dt><dd class="{% if market.change_24h > 0 %}up{% elif market.change_24h < 0 %}down{% endif %}">{% if market.change_24h > 0 %}+{% endif %}{{ market.change_24h|floatformat:2 }} %</dd></div>
+    <div><dt>24h volume</dt><dd>{{ market.volume_24h|compact }}</dd></div>
+    <div><dt>Liquidity</dt><dd>{{ market.liquidity_usd|compact }}</dd></div>
+  </dl>
+  {% if market.liquidity_usd < 50000 %}<p class="notice warn">Low liquidity: even a small trade will move the price a lot. <a href="{% url 'guide' 'scam-tokens' %}">What to check</a></p>{% endif %}
+  {% endif %}
+</section>
+
+<section class="card chart-card">
+  <div class="chart-head">
+    <div class="seg small tf" role="group" aria-label="Candle length">
+      <button type="button" data-tf="15m">15m</button><button type="button" data-tf="1h">1h</button>
+      <button type="button" data-tf="4h">4h</button><button type="button" data-tf="1d">1d</button>
+    </div>
+    <a class="quiet" href="{% url 'guide' 'chart-reading' %}">How to read the chart</a>
+  </div>
+  <p class="candle-info" id="candle-info">Loading candles…</p>
+  <div id="chart" data-token-id="{{ token.pk }}" data-pro="{{ user.pro_mode|yesno:'1,0' }}"></div>
+  <p id="chart-msg" class="empty" hidden></p>
+  <p id="chart-pick" class="pick" hidden><a></a><button type="button" aria-label="Dismiss">✕</button></p>
+  <details class="legend">
+    <summary>What's on the chart</summary>
+    <p class="hint">Each candle is one period of time (the buttons above set its length). The last candle is still forming: it changes in place until its time is up, then a new one appears on the right. Dashed lines are your rules, the dotted line is your average entry price, arrows are your trades. Click the chart to set a rule at that price.{% if user.pro_mode %} The thin line is the 20-candle moving average (MA20).{% endif %}</p>
+  </details>
+</section>
+
+{% if live_error %}<p class="notice warn">{{ live_error }}</p>{% endif %}
+<form method="post" class="card" id="trade-form" data-symbol="{{ token.symbol }}" data-native="{{ network.native_symbol }}" data-mode="{{ mode }}" data-limit="{{ limit|default:'' }}"
+      data-have-token="{{ have_token|stringformat:'s' }}" data-have-native="{{ have_native|stringformat:'s' }}">
+  {% csrf_token %}<input type="hidden" name="token" value="{{ token.pk }}"><input type="hidden" name="confirm" value="">
+  <div class="seg">
+    <input type="radio" name="side" id="buy" value="buy" checked><label for="buy">Buy</label>
+    <input type="radio" name="side" id="sell" value="sell"><label for="sell">Sell</label>
+  </div>
+
+  <div data-side="buy">
+    <label class="label" for="amount">Buy for, {{ network.native_symbol }}</label>
+    <input id="amount" name="amount" inputmode="decimal" autocomplete="off" placeholder="0.05">
+    <div class="chips">
+      <button type="button" data-set="0.01">0.01</button><button type="button" data-set="0.05">0.05</button>
+      <button type="button" data-set="0.1">0.1</button><button type="button" data-set="0.25">0.25</button>
+    </div>
+    <p class="hint">{% if mode == "live" %}In the trading wallet{% else %}Available{% endif %}: {{ have_native|num }} {{ network.native_symbol }}{% if limit %} · single-buy limit {{ limit|num }} {{ network.native_symbol }}{% endif %}</p>
+  </div>
+
+  <div data-side="sell" hidden>
+    <p class="label">How much to sell</p>
+    <div class="seg small">
+      <input type="radio" name="percent" id="p25" value="25"><label for="p25">25 %</label>
+      <input type="radio" name="percent" id="p50" value="50"><label for="p50">50 %</label>
+      <input type="radio" name="percent" id="p100" value="100" checked><label for="p100">All</label>
+    </div>
+    <p class="hint">You have {{ have_token|num }} {{ token.symbol }}</p>
+  </div>
+
+  <p class="preview" id="preview" hidden></p>
+  <button class="btn primary wide" id="submit">Buy {{ token.symbol }}</button>
+  {% if mode == "live" %}<p class="hint center">Live mode: this is real money, and network gas is charged on top. If the price moves more than {{ user.slippage_bps|slippage }}, the trade is cancelled. Sending can take a couple of minutes, so keep this page open.</p>
+  {% else %}<p class="hint center">Demo: play money. The 0.3 % pool fee is included, gas is not charged.</p>{% endif %}
+</form>
+{% endif %}
+{% endblock %}
+{% block scripts %}
+{% if token %}
+<script src="{% static 'js/lightweight-charts.js' %}"></script>
+<script src="{% static 'js/chart.js' %}"></script>
+<script src="{% static 'js/trade.js' %}"></script>
+{% endif %}
+{% endblock %}

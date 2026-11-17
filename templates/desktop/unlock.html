@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Unlock — {{ site_name }}{% endblock %}
+{% block content %}
+<section class="gate">
+  {% include "partials/logo.html" with cls="big" %}
+  <h1>{{ site_name }}</h1>
+  <form method="post" class="card">{% csrf_token %}
+    {% if error %}<p class="hint down">{{ error }}</p>{% endif %}
+    <label class="label" for="password">Password</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+    <button class="btn primary wide">Unlock</button>
+  </form>
+  <details class="reset">
+    <summary>Forgot your password?</summary>
+    <p class="hint">It can't be recovered. To start over, close the app and delete the folder <span class="mono">{{ data_dir }}</span>. The trading wallet is deleted with it: if it holds money, you can't get it back without the saved private key.</p>
+  </details>
+</section>
+{% endblock %}

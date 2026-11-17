@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}{{ guide.title }} — {{ site_name }}{% endblock %}
+{% block content %}
+<a class="quiet" href="{% url 'guides' %}">← All guides</a>
+<article class="prose">
+  <p class="label">{{ guide.get_level_display }} · {{ guide.minutes }} min</p>
+  <h1>{{ guide.title }}</h1>
+  {{ body }}
+</article>
+{% if next %}<a class="row" href="{% url 'guide' next.slug %}"><span><small>Next</small><b>{{ next.title }}</b></span><span class="r">→</span></a>{% endif %}
+{% endblock %}

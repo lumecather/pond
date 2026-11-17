@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}{{ site_name }}{% endblock %}
+{% block content %}
+<section class="hero small-hero">
+  {% include "partials/logo.html" with cls="big" %}
+  <h1>Open the app</h1>
+  <p class="lead">This page only works inside the {{ site_name }} window. Start the app again and it will open this page itself.</p>
+</section>
+{% endblock %}

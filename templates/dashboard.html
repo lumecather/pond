@@ -1,0 +1,71 @@
+{% extends "base.html" %}{% load fmt %}
+{% block title %}{{ site_name }}{% endblock %}
+{% block content %}
+{% if not network %}
+  <div class="card"><p>No networks are enabled. Enable one in the admin.</p></div>
+{% else %}
+{% if live_error %}
+<div class="card"><p>{{ live_error }}</p><a class="btn" href="{% url 'wallet' %}">Open the wallet</a></div>
+{% else %}
+<section class="balance">
+  <p class="label">{% if mode == "live" %}Trading wallet <span class="chip hot">real money</span>{% else %}Demo balance <span class="chip">play money, real prices</span>{% endif %}</p>
+  <p class="total">{% if p.total_usd %}{{ p.total_usd|usd }}{% else %}{{ p.total|num }} {{ network.native_symbol }}{% endif %}</p>
+  <p class="sub">
+    {% if p.pnl_percent is not None %}<span class="{% if p.pnl_percent > 0 %}up{% elif p.pnl_percent < 0 %}down{% endif %}">{% if p.pnl_percent > 0 %}+{% endif %}{{ p.pnl_percent|floatformat:2 }} %</span>
+    since the start · {% endif %}{{ p.native|num }} {{ network.native_symbol }} available
+  </p>
+  <div class="actions">
+    <a class="btn primary" href="{% url 'tokens' %}">Pick a token</a>
+    <a class="btn" href="{% url 'rules' %}">New rule</a>
+  </div>
+</section>
+
+{% if not orders and mode != "live" %}
+<section class="card start">
+  <h2>Where to start</h2>
+  <ol>
+    {% if need_rpc %}<li><a href="{% url 'app_settings' %}">Paste an RPC key</a>: without it there are no prices. <a href="{% url 'guide' 'rpc-keys' %}">Where to get one</a>.</li>{% endif %}
+    <li><a href="{% url 'tokens' %}">Pick a token</a> and buy some with part of your demo balance.</li>
+    <li><a href="{% url 'rules' %}">Set a rule</a>: the bot will sell or buy more by itself.</li>
+    <li><a href="{% url 'guide' 'start' %}">Read "First steps"</a>, it takes two minutes.</li>
+  </ol>
+</section>
+{% endif %}
+
+<section>
+  <h2>Positions</h2>
+  {% for r in p.positions %}
+  <a class="row" href="{% url 'trade' %}?token={{ r.token.pk }}">
+    {% include "partials/token_avatar.html" with t=r.token %}
+    <span style="flex:1"><b>{{ r.token.symbol }}</b><small>{{ r.amount|num }} · {{ r.token.name }}</small></span>
+    <span class="r"><b>{% if r.value_usd %}{{ r.value_usd|usd }}{% else %}{{ r.value|num }} {{ network.native_symbol }}{% endif %}</b>
+      <small>price {% if r.price_usd %}{{ r.price_usd|usd }}{% else %}{{ r.price|num }}{% endif %}{% if user.pro_mode and r.price %} · {{ r.price|num }} {{ network.native_symbol }}{% endif %}</small></span>
+  </a>
+  {% empty %}<p class="empty">Nothing here yet. Tokens you buy will show up here.</p>{% endfor %}
+</section>
+
+<section>
+  <h2>Active rules <a href="{% url 'rules' %}">all</a></h2>
+  {% for r in rules %}
+  <div class="row"><span><b>{{ r.token.symbol }}</b><small>{{ r.get_trigger_display }} {{ r.trigger_price_usd|usd }}</small></span>
+    <span class="r"><b>{{ r.get_action_display }}</b><small>{% if r.action == "buy" %}for {{ r.amount_native|num }} {{ network.native_symbol }}{% else %}{{ r.sell_percent }} %{% endif %}</small></span></div>
+  {% empty %}<p class="empty">No rules. The bot does nothing unless you tell it to.</p>{% endfor %}
+</section>
+
+<section>
+  <h2>Recent trades <a href="{% url 'history' %}">history</a></h2>
+  {% include "partials/orders.html" %}
+</section>
+
+{% if mode != "live" %}
+<details class="reset">
+  <summary>Lost track? Restart the demo</summary>
+  <form method="post" action="{% url 'demo_reset' %}">{% csrf_token %}
+    <p class="hint">This deletes demo trades and positions and resets the starting balance. Rules stay, but are paused.</p>
+    <button class="btn small">Yes, start over</button>
+  </form>
+</details>
+{% endif %}
+{% endif %}
+{% endif %}
+{% endblock %}

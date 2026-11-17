@@ -1,0 +1,11 @@
+# Runtime dependencies (Python 3.11+).
+Django==5.2.17
+web3==8.0.0
+eth-account==0.14.0
+cryptography==50.0.1
+Markdown==3.11
+requests==2.33.1
+waitress==3.0.2
+pywebview==6.2.1
+tzlocal==5.3.1
+tzdata==2025.2

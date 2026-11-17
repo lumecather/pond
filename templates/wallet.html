@@ -1,0 +1,64 @@
+{% extends "base.html" %}{% load fmt %}
+{% block title %}Wallet — {{ site_name }}{% endblock %}
+{% block content %}
+<h1>Trading wallet</h1>
+<p class="lead-s">A separate wallet for the bot. Its key is kept only on this computer, encrypted with your password.</p>
+
+{% if not wallet %}
+<form method="post" class="card">{% csrf_token %}
+  <p>We'll create a new wallet and store its key encrypted. Only send it the amount you are ready to trade with.</p>
+  <button class="btn primary wide" name="action" value="create">Create a trading wallet</button>
+</form>
+<details class="card fold">
+  <summary>Or import your own wallet</summary>
+  <form method="post">{% csrf_token %}<input type="hidden" name="action" value="import">
+    <p class="hint">Better to give the bot a separate wallet than the key to your main one: if a rule goes wrong or the computer is compromised, only that wallet is at risk.</p>
+    <input name="private_key" type="password" class="mono" placeholder="Private key (64 characters)" autocomplete="off" spellcheck="false" required>
+    <button class="btn">Import</button>
+  </form>
+</details>
+{% else %}
+<div class="card">
+  <p class="label">Deposit address ({{ network.name }})</p>
+  <p class="mono big" id="addr">{{ wallet.address }}</p>
+  <button class="btn small" type="button" onclick="navigator.clipboard.writeText('{{ wallet.address }}'); this.textContent='Copied'">Copy</button>
+  {% if user.live_enabled %}
+    <p class="notice">Live trading is on. Only deposit as much {{ network.native_symbol }} as you are ready to risk: some of it goes to gas. Single-buy limit: {{ limit|num }} {{ network.native_symbol }}. Switch between Demo and Live in the menu at the top.</p>
+  {% else %}
+    <p class="notice">Live trading is off, so there is no need to fund the wallet yet. Turn it on in <a href="{% url 'app_settings' %}">Settings</a>.</p>
+  {% endif %}
+</div>
+
+<div class="card">
+  <p class="label">Wallet balance</p>
+  {% if balance_error %}<p class="hint down">{{ balance_error }}</p>
+  {% else %}
+    <div class="row"><span><b>{{ network.native_symbol }}</b><small>the network coin, used to pay gas</small></span>
+      <span class="r"><b>{{ p.native|num }}</b>{% if p.native_usd %}<small>{{ p.native_usd|usd }}</small>{% endif %}</span></div>
+    {% for r in p.positions %}
+    <div class="row"><span><b>{{ r.token.symbol }}</b><small>{{ r.token.name }}</small></span>
+      <span class="r"><b>{{ r.amount|num }}</b>{% if r.value_usd %}<small>{{ r.value_usd|usd }}</small>{% endif %}</span></div>
+    {% endfor %}
+    {% if withdraw_to %}<p class="hint">Withdrawals only go to the address from Settings: <span class="mono">{{ withdraw_to }}</span>. Withdraw tokens first and {{ network.native_symbol }} last: it pays for the gas.</p>
+    {% else %}<p class="hint">To withdraw with one click, add your main wallet's address in <a href="{% url 'app_settings' %}">Settings</a>.</p>{% endif %}
+    <form method="post" class="withdraw">{% csrf_token %}<input type="hidden" name="action" value="withdraw">
+      {% for r in p.positions %}<button class="btn small" name="token" value="{{ r.token.pk }}">Withdraw all {{ r.token.symbol }}</button>{% endfor %}
+      {% if p.native > 0 %}<button class="btn small" name="token" value="">Withdraw all {{ network.native_symbol }}</button>{% endif %}
+    </form>
+  {% endif %}
+</div>
+
+<div class="card">
+  <p class="label">Private key</p>
+  {% if private_key %}
+    <p class="mono key">{{ private_key }}</p>
+    <p class="hint down">Never show it to anyone. Whoever has the key has the money.</p>
+  {% else %}
+    <p class="hint">Your way out: with the key you can move the funds from any wallet app, even if Pond stops working.</p>
+    <form method="post" class="export">{% csrf_token %}
+      <input name="password" type="password" placeholder="App password" autocomplete="current-password" required>
+      <button class="btn" name="action" value="export">Show key</button></form>
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}

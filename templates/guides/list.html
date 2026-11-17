@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Guides — {{ site_name }}{% endblock %}
+{% block content %}
+<h1>Guides</h1>
+<p class="lead-s">Short and in plain words. Terms are explained as they come up.</p>
+<section>
+  <h2>For beginners</h2>
+  {% for g in novice %}<a class="row" href="{% url 'guide' g.slug %}"><span><b>{{ g.title }}</b><small>{{ g.summary }}</small></span><span class="r"><small>{{ g.minutes }} min</small></span></a>{% endfor %}
+</section>
+<section>
+  <h2>Going further</h2>
+  {% for g in pro %}<a class="row" href="{% url 'guide' g.slug %}"><span><b>{{ g.title }}</b><small>{{ g.summary }}</small></span><span class="r"><small>{{ g.minutes }} min</small></span></a>{% endfor %}
+</section>
+{% endblock %}
