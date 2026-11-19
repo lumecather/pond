@@ -87,7 +87,9 @@ Ideas and pull requests are welcome: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-MIT, see [LICENSE](LICENSE). The chart library, [TradingView Lightweight Charts™](https://github.com/tradingview/lightweight-charts), is licensed under Apache 2.0 (see [NOTICE](NOTICE)).
+Copyright (C) 2026 lumecather
+
+Pond is licensed under the GNU General Public License v3.0 or later. See LICENSE.
 
 ---
 
