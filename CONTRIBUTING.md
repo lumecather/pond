@@ -120,4 +120,4 @@ GitHub Actions runs the tests on every pull request and builds the Windows app. 
 
 Maintainers tag a version (`git tag v0.2.0 && git push origin v0.2.0`). The workflow then builds `Pond-windows.zip` and attaches it to a GitHub Release.
 
-By contributing you agree that your contribution is licensed under the [MIT License](LICENSE).
+By contributing you agree that your contribution is licensed under the [GNU General Public License v3.0 or later](LICENSE).
